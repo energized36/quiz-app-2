@@ -63,6 +63,47 @@ docker build -t quiz-app .
 docker run -p 3000:3000 --env-file .env quiz-app
 ```
 
+## API Routes
+
+### Auth
+| Method | Route | Description | Auth |
+|--------|-------|-------------|------|
+| POST | `/register` | Register a new user | None |
+| POST | `/login` | Login and receive a JWT | None |
+
+### Categories
+| Method | Route | Description | Auth |
+|--------|-------|-------------|------|
+| GET | `/categories` | Get all quiz categories | Required |
+| GET | `/categories/:id` | Get a single category with its quizzes | Required |
+
+### Quizzes
+| Method | Route | Description | Auth |
+|--------|-------|-------------|------|
+| GET | `/quizzes` | Get all quizzes | Required |
+| GET | `/quizzes/:id` | Get a single quiz with its questions | Required |
+| GET | `/quizzes/autoplay` | Get quizzes flagged for auto-play mode | Required |
+
+### Questions & Answers
+| Method | Route | Description | Auth |
+|--------|-------|-------------|------|
+| GET | `/quizzes/:id/questions` | Get all questions for a quiz (with answers and media) | Required |
+| POST | `/questions/:id/answer` | Submit an answer — returns whether it is correct | Required |
+
+### Admin
+| Method | Route | Description | Auth |
+|--------|-------|-------------|------|
+| GET | `/admin/users` | Get all users | Admin |
+| DELETE | `/admin/delete-user` | Delete a user by ID | Admin |
+| POST | `/admin/categories` | Create a new category | Admin |
+| DELETE | `/admin/categories/:id` | Delete a category | Admin |
+| POST | `/admin/quizzes` | Create a new quiz | Admin |
+| DELETE | `/admin/quizzes/:id` | Delete a quiz | Admin |
+| POST | `/admin/questions` | Add a question to a quiz | Admin |
+| DELETE | `/admin/questions/:id` | Delete a question | Admin |
+
+> Requests to protected routes must include the JWT in the `Authorization` header as `Bearer <token>`.
+
 ## Deliverables
 
 ### Part A — Core Quiz Functionality
