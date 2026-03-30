@@ -3,7 +3,7 @@ class ClientApp {
     this.loginForm = document.getElementById("login-form");
     this.registerForm = document.getElementById("register-form");
     this.message = document.getElementById("form-message");
-    this.API_BASE_URL = "https://isa-telephony.onrender.com";
+    this.API_BASE_URL = "http://localhost:3000";
     this.dashboardRoot = document.getElementById("dashboard-root");
     this.adminRoot = document.getElementById("admin-root");
     this.logoutBtn = document.getElementById("logout-btn");
@@ -216,19 +216,16 @@ class ClientApp {
         }
 
         try {
-          const adminKey = prompt("Enter admin key:");
+
           const response = await fetch(`${this.API_BASE_URL}/admin/users`, {
             headers: { "x-admin-key": adminKey },
           });
 
-          if (!response.ok) {
-            document.getElementById("admin-error").textContent = "Access denied.";
-            return;
-          }
+          
 
-          const users = await response.json();
+          const users = await this.authFetch("/admin/users");
           const tbody = document.getElementById("users-tbody");
-          tbody.innerHTML = ""; // safe — we populate with textContent below
+          tbody.innerHTML = "";
 
           users.forEach((u) => {
             const tr = document.createElement("tr");
@@ -241,7 +238,7 @@ class ClientApp {
             tdEmail.textContent = u.email;
 
             const tdCalls = document.createElement("td");
-            tdCalls.textContent = `${u.api_calls_consumed || 0} / 20`;
+            tdCalls.textContent = `${u.api_calls_consumed || 0} / ${u.api_calls_limit || 20}`;
 
             const tdRole = document.createElement("td");
             const roleBadge = document.createElement("span");
@@ -277,7 +274,7 @@ class ClientApp {
 
           document.getElementById("total-users").textContent = users.length;
           document.getElementById("users-at-limit").textContent = users.filter(
-            (u) => (u.api_calls_consumed || 0) >= 20,
+            (u) => (u.api_calls_consumed || 0) >= (u.api_calls_limit || 20),
           ).length;
         } catch (err) {
           console.error("Admin load error:", err);
