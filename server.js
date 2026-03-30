@@ -230,6 +230,14 @@ class ServerApp {
         res.status(500).json({ error: "Failed to fetch users" });
       }
     });
+
+    // Get all quiz categories
+    this.app.get("/categories", async(req, res) => {
+      const categories = await this.pool
+        .request()
+        .query("SELECT * from categories");
+      return res.json(categories);
+    })
   }
 
   start() {
