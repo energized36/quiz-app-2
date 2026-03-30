@@ -93,7 +93,7 @@ docker exec -it quiz-db /opt/mssql-tools18/bin/sqlcmd `
 
 # Mac / Linux
 docker exec -it quiz-db /opt/mssql-tools18/bin/sqlcmd \
-  -S localhost -U sa -P "your_db_password_here" \
+  -S localhost -U sa -P 'your_db_password_here' \
   -i /docker-entrypoint-initdb.d/init.sql -No
 ```
 

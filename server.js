@@ -106,10 +106,6 @@ class ServerApp {
   }
 
   setupRoutes() {
-    // ==================
-    // AUTH ROUTES
-    // ==================
-
     this.app.post("/register", async (req, res) => {
       const { email, password } = req.body || {};
 
