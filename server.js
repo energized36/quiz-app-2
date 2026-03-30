@@ -238,6 +238,16 @@ class ServerApp {
         .query("SELECT * from categories");
       return res.json(categories);
     })
+
+    // Get all quizzes for a given category
+    this.app.get("/categories/:id", async(req, res) => {
+      const id = req.params.id;
+      const quizzes = await this.pool
+        .request()
+        .input("id", sql.Int, id)
+        .query(`SELECT * FROM quizzes WHERE category_id = @id ORDER BY created_at DESC`);
+      return res.json(quizzes.recordset);
+    });
   }
 
   start() {
