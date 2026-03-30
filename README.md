@@ -5,13 +5,12 @@ A trivia quiz web app built for BCIT COMP 4945 — Distributed Software Architec
 ## Tech Stack
 
 - **Backend:** Node.js, Express
-- **Database:** SQL Server
+- **Database:** SQL Server (MSSQL) running in Docker
 - **Auth:** JWT (jsonwebtoken), bcrypt
 - **Frontend:** Vanilla JS, HTML, CSS
 - **Containerization:** Docker
 
 ## Project Structure
-
 ```
 quiz-app/
 ├── server.js          # Express server, routes, middleware
@@ -22,6 +21,9 @@ quiz-app/
 │   ├── styles.css
 │   └── js/
 │       └── client.js
+├── db/
+│   ├── docker-compose.yml  # MSSQL container config
+│   └── init.sql            # Schema + seed data
 ├── Dockerfile
 ├── .env               # Not committed — see setup below
 └── package.json
@@ -31,37 +33,131 @@ quiz-app/
 
 ### Prerequisites
 - Node.js v18+
-- Docker (for running SQL Server)
+- Docker Desktop (must be running before any docker commands)
+- SQL Server Management Studio (SSMS) — optional, for inspecting the database visually
 
-### Setup
+### 1. Clone the repo and install dependencies
+```bash
+git clone <repo-url>
+cd quiz-app
+npm install
+```
 
-1. Clone the repo
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Start SQL Server in Docker:
-   ```bash
-   docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=your_password" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2022-latest
-   ```
-4. Create a `.env` file in the project root:
-   ```
-   PORT=3000
-   DB_CONNECTION_STRING=your_sql_server_connection_string
-   JWT_SECRET=your_secret_key
-   ```
-5. Start the server:
-   ```bash
-   node server.js
-   ```
-6. Visit `http://localhost:3000`
+### 2. Create your `.env` file
+Create a `.env` file in the project root. This file is gitignored and must be created manually by each developer:
+```
+PORT=3000
+JWT_SECRET=your_secret_key_here
+DB_SERVER=localhost
+DB_PORT=1433
+DB_NAME=quiz_app
+DB_USER=sa
+DB_PASSWORD=your_db_password_here
+SA_PASSWORD=your_db_password_here
+```
 
-### Running with Docker
+> **Note:** `DB_PASSWORD` and `SA_PASSWORD` should be the same value. The SA password must be at least 8 characters and include uppercase, lowercase, a number, and a symbol (e.g. `QuizApp_2024!`). Avoid using `$` in the password as Docker Compose may try to interpret it as a variable.
 
+### 3. Generate seed password hashes
+The `init.sql` seed data uses bcrypt hashes for the default admin and user accounts. Generate real hashes before running the init script:
+```bash
+node -e "
+const bcrypt = require('bcrypt');
+Promise.all([
+  bcrypt.hash('admin1234', 10),
+  bcrypt.hash('user1234', 10)
+]).then(([a, u]) => console.log('admin:', a, '\nuser:', u));
+"
+```
+
+Open `db/init.sql` and replace the two placeholder hashes in the `INSERT INTO users` statements with the values printed above.
+
+### 4. Start the database container
+```bash
+docker compose -f db/docker-compose.yml --env-file .env up -d
+```
+
+Wait about 30 seconds, then confirm the container is healthy:
+```bash
+docker ps
+# STATUS should show "(healthy)" next to quiz-db
+```
+
+### 5. Run the init script
+This creates all tables and inserts seed data. Only needs to be run once per machine (or after wiping the volume):
+```bash
+# Windows (PowerShell)
+docker exec -it quiz-db /opt/mssql-tools18/bin/sqlcmd `
+  -S localhost -U sa -P "your_db_password_here" `
+  -i /docker-entrypoint-initdb.d/init.sql -No
+
+# Mac / Linux
+docker exec -it quiz-db /opt/mssql-tools18/bin/sqlcmd \
+  -S localhost -U sa -P 'your_db_password_here' \
+  -i /docker-entrypoint-initdb.d/init.sql -No
+```
+
+Verify the tables were created:
+```bash
+# Windows (PowerShell)
+docker exec -it quiz-db /opt/mssql-tools18/bin/sqlcmd `
+  -S localhost -U sa -P "your_db_password_here" `
+  -Q "USE quiz_app; SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE';" -No
+
+# Mac / Linux
+docker exec -it quiz-db /opt/mssql-tools18/bin/sqlcmd \
+  -S localhost -U sa -P "your_db_password_here" \
+  -Q "USE quiz_app; SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE';" -No
+```
+
+You should see 7 tables: `users`, `categories`, `quizzes`, `questions`, `answers`, `quiz_attempts`, `attempt_answers`.
+
+### 6. Start the server
+```bash
+node server.js
+```
+
+Visit `http://localhost:3000` — you should be redirected to the login page.
+
+### Default seed accounts
+| Email | Password | Role |
+|-------|----------|------|
+| admin@quiz.com | admin1234 | Admin |
+| user@quiz.com | user1234 | User |
+
+---
+
+## Inspecting the Database (SSMS)
+You can connect SQL Server Management Studio directly to the Docker container:
+- **Server name:** `localhost,1433`
+- **Authentication:** SQL Server Authentication
+- **Login:** `sa`
+- **Password:** your `SA_PASSWORD` from `.env`
+- **Encryption:** Optional
+
+---
+
+## Resetting the Database
+If you need to wipe the database and start fresh (e.g. after a schema change):
+```bash
+# Stop the container and delete the volume
+docker compose -f db/docker-compose.yml --env-file .env down -v
+
+# Bring it back up
+docker compose -f db/docker-compose.yml --env-file .env up -d
+
+# Wait for healthy, then re-run the init script (step 5 above)
+```
+
+---
+
+## Running with Docker (App Container)
 ```bash
 docker build -t quiz-app .
 docker run -p 3000:3000 --env-file .env quiz-app
 ```
+
+---
 
 ## API Routes
 
@@ -70,6 +166,7 @@ docker run -p 3000:3000 --env-file .env quiz-app
 |--------|-------|-------------|------|
 | POST | `/register` | Register a new user | None |
 | POST | `/login` | Login and receive a JWT | None |
+| GET | `/me` | Get current user profile | Required |
 
 ### Categories
 | Method | Route | Description | Auth |
@@ -104,6 +201,8 @@ docker run -p 3000:3000 --env-file .env quiz-app
 
 > Requests to protected routes must include the JWT in the `Authorization` header as `Bearer <token>`.
 
+---
+
 ## Deliverables
 
 ### Part A — Core Quiz Functionality
@@ -127,7 +226,7 @@ docker run -p 3000:3000 --env-file .env quiz-app
 ### Part C — DevOps
 - [x] Web API runs in a Docker container
 - [ ] GitHub Actions CI/CD pipeline for build/compilation
-- [ ] Database running in a Docker container
+- [x] Database running in a Docker container
 - [x] App deployed to the cloud with HTTPS enabled
 
 ### General
