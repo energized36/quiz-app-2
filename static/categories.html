@@ -1,0 +1,975 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CineQuiz — Movie Trivia</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0a0a0f;
+        --card: #111118;
+        --card-hover: #1a1a26;
+        --border: rgba(255, 255, 255, 0.07);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        background-color: var(--bg);
+        font-family: "DM Sans", sans-serif;
+        color: #e2e2f0;
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      /* Subtle noise texture overlay */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .content {
+        position: relative;
+        z-index: 1;
+      }
+
+      /* Hero gradient */
+      .hero-glow {
+        background: radial-gradient(
+          ellipse 80% 40% at 50% 0%,
+          rgba(99, 60, 255, 0.18) 0%,
+          transparent 70%
+        );
+      }
+
+      /* Logo */
+      .logo {
+        font-family: "Bebas Neue", sans-serif;
+        letter-spacing: 0.06em;
+      }
+
+      /* Category badge */
+      .cat-badge {
+        font-family: "Bebas Neue", sans-serif;
+        letter-spacing: 0.12em;
+        font-size: 0.7rem;
+      }
+
+      /* Movie card */
+      .movie-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        cursor: pointer;
+        transition:
+          transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
+          box-shadow 0.22s ease,
+          opacity 0.15s ease,
+          background 0.2s ease;
+        flex-shrink: 0;
+        user-select: none;
+      }
+
+      .movie-card:hover {
+        transform: translateY(-6px) scale(1.02);
+        background: var(--card-hover);
+        box-shadow:
+          0 20px 40px rgba(0, 0, 0, 0.5),
+          0 0 0 1px rgba(255, 255, 255, 0.1);
+      }
+
+      .movie-card:active {
+        transform: scale(0.97);
+      }
+
+      .movie-card.clicked {
+        opacity: 0.38;
+        transform: none;
+        box-shadow: none;
+        pointer-events: none;
+      }
+
+      /* Scroll row */
+      .scroll-row {
+        display: flex;
+        gap: 14px;
+        overflow-x: auto;
+        padding-bottom: 12px;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+      }
+
+      .scroll-row::-webkit-scrollbar {
+        height: 4px;
+      }
+      .scroll-row::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .scroll-row::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+      }
+
+      /* Category section entrance animation */
+      .cat-section {
+        opacity: 0;
+        transform: translateY(28px);
+        animation: fadeUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      }
+
+      @keyframes fadeUp {
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* Hero entrance */
+      .hero-text {
+        opacity: 0;
+        transform: translateY(16px);
+        animation: fadeUp 0.7s 0.1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      }
+
+      /* Poster emoji container */
+      .poster-art {
+        border-radius: 10px 10px 0 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.2rem;
+        height: 96px;
+      }
+
+      /* Difficulty dot */
+      .diff-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 3px;
+      }
+
+      /* Nav */
+      nav {
+        background: linear-gradient(
+          to bottom,
+          rgba(10, 10, 15, 0.98) 0%,
+          rgba(10, 10, 15, 0) 100%
+        );
+      }
+
+      /* Search bar */
+      .search-bar {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition:
+          border-color 0.2s,
+          background 0.2s;
+      }
+      .search-bar:focus {
+        outline: none;
+        background: rgba(255, 255, 255, 0.09);
+        border-color: rgba(255, 255, 255, 0.22);
+      }
+
+      /* Genre tag pills */
+      .genre-pill {
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 999px;
+        font-size: 0.72rem;
+        padding: 3px 10px;
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          border-color 0.15s;
+      }
+      .genre-pill:hover {
+        background: rgba(255, 255, 255, 0.13);
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+      .genre-pill.active {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: rgba(255, 255, 255, 0.3);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Fixed Nav -->
+    <nav
+      class="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between content"
+    >
+      <div class="flex items-center gap-3">
+        <span class="logo text-3xl text-white tracking-widest">CINEQUIZ</span>
+        <span class="text-xs text-white/30 font-light hidden sm:block"
+          >/ movie trivia</span
+        >
+      </div>
+      <div class="flex items-center gap-3">
+        <input
+          type="text"
+          placeholder="Search quizzes..."
+          class="search-bar rounded-full px-4 py-1.5 text-sm text-white/80 placeholder-white/30 w-40 sm:w-56"
+        />
+        <div
+          class="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center text-sm font-semibold cursor-pointer hover:bg-violet-500 transition-colors"
+        >
+          J
+        </div>
+      </div>
+    </nav>
+
+    <!-- Hero -->
+    <div class="hero-glow content pt-28 pb-8 px-6 sm:px-10">
+      <div class="hero-text max-w-5xl mx-auto">
+        <p
+          class="text-xs font-medium tracking-[0.3em] text-violet-400/80 mb-2 uppercase"
+        >
+          Pick your era. Prove your knowledge.
+        </p>
+        <h1 class="logo text-6xl sm:text-7xl text-white mb-3 leading-none">
+          Movie Trivia
+        </h1>
+        <p class="text-white/40 text-sm max-w-md font-light">
+          From blockbusters to cult classics — test your knowledge across
+          decades of cinema.
+        </p>
+
+        <!-- Genre filter pills -->
+        <div class="flex flex-wrap gap-2 mt-5">
+          <span class="genre-pill text-white/60 active">All Decades</span>
+          <span class="genre-pill text-white/60">90s</span>
+          <span class="genre-pill text-white/60">2000s</span>
+          <span class="genre-pill text-white/60">2010s</span>
+          <span class="genre-pill text-white/60">2020s</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Categories -->
+    <main class="content max-w-5xl mx-auto px-6 sm:px-10 pb-24 space-y-12">
+      <!-- ── 90s Movies ── -->
+      <section class="cat-section" style="animation-delay: 0.15s">
+        <div class="flex items-center gap-3 mb-5">
+          <span
+            class="cat-badge bg-amber-500/20 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full"
+            >📼 90s Movies</span
+          >
+          <span class="text-white/20 text-xs">8 quizzes</span>
+          <div class="flex-1 h-px bg-white/5"></div>
+          <button
+            class="text-xs text-white/30 hover:text-white/60 transition-colors"
+          >
+            See all →
+          </button>
+        </div>
+        <div class="scroll-row">
+          <!-- Card template: 90s -->
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #1a0a00, #3d1a00)"
+            >
+              🦁
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                The Lion King
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">1994 · Animation</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-emerald-400"></span>
+                <span class="text-[10px] text-white/30">Easy</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #0f0a00, #2a1f00)"
+            >
+              🎲
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                Pulp Fiction
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">1994 · Crime</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-orange-400"></span>
+                <span class="text-[10px] text-white/30">Medium</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #001020, #002040)"
+            >
+              🍫
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                Forrest Gump
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">1994 · Drama</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-emerald-400"></span>
+                <span class="text-[10px] text-white/30">Easy</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #080010, #160030)"
+            >
+              🕶️
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                The Matrix
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">1999 · Sci-Fi</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-orange-400"></span>
+                <span class="text-[10px] text-white/30">Medium</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #00100a, #00281a)"
+            >
+              🦖
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                Jurassic Park
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">1993 · Adventure</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-emerald-400"></span>
+                <span class="text-[10px] text-white/30">Easy</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #100010, #280028)"
+            >
+              🔪
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                The Silence of the Lambs
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">1991 · Thriller</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-rose-400"></span>
+                <span class="text-[10px] text-white/30">Hard</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #001820, #003040)"
+            >
+              ⚓
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                Titanic
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">1997 · Romance</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-emerald-400"></span>
+                <span class="text-[10px] text-white/30">Easy</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #100a00, #201500)"
+            >
+              🎸
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                Fight Club
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">1999 · Drama</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-rose-400"></span>
+                <span class="text-[10px] text-white/30">Hard</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 2000s Movies ── -->
+      <section class="cat-section" style="animation-delay: 0.28s">
+        <div class="flex items-center gap-3 mb-5">
+          <span
+            class="cat-badge bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 px-3 py-1 rounded-full"
+            >💿 2000s Movies</span
+          >
+          <span class="text-white/20 text-xs">8 quizzes</span>
+          <div class="flex-1 h-px bg-white/5"></div>
+          <button
+            class="text-xs text-white/30 hover:text-white/60 transition-colors"
+          >
+            See all →
+          </button>
+        </div>
+        <div class="scroll-row">
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #050010, #0d0028)"
+            >
+              🦇
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                The Dark Knight
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">2008 · Action</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-orange-400"></span>
+                <span class="text-[10px] text-white/30">Medium</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #001010, #002020)"
+            >
+              🧠
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                Eternal Sunshine
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">2004 · Romance</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-rose-400"></span>
+                <span class="text-[10px] text-white/30">Hard</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #100808, #280f0f)"
+            >
+              🧩
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                Memento
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">2000 · Thriller</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-rose-400"></span>
+                <span class="text-[10px] text-white/30">Hard</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #000a18, #001830)"
+            >
+              🌊
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                Spirited Away
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">2001 · Animation</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-orange-400"></span>
+                <span class="text-[10px] text-white/30">Medium</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #080010, #140020)"
+            >
+              💍
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                Lord of the Rings
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">2001 · Fantasy</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-orange-400"></span>
+                <span class="text-[10px] text-white/30">Medium</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #100500, #200a00)"
+            >
+              ⚔️
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                No Country for Old Men
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">2007 · Western</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-rose-400"></span>
+                <span class="text-[10px] text-white/30">Hard</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #000a10, #001520)"
+            >
+              🏙️
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                Lost in Translation
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">2003 · Drama</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-orange-400"></span>
+                <span class="text-[10px] text-white/30">Medium</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #0a0a00, #18180a)"
+            >
+              🌻
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                Amélie
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">2001 · Comedy</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-orange-400"></span>
+                <span class="text-[10px] text-white/30">Medium</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 2010s Movies ── -->
+      <section class="cat-section" style="animation-delay: 0.41s">
+        <div class="flex items-center gap-3 mb-5">
+          <span
+            class="cat-badge bg-violet-500/20 text-violet-400 border border-violet-500/30 px-3 py-1 rounded-full"
+            >📱 2010s Movies</span
+          >
+          <span class="text-white/20 text-xs">8 quizzes</span>
+          <div class="flex-1 h-px bg-white/5"></div>
+          <button
+            class="text-xs text-white/30 hover:text-white/60 transition-colors"
+          >
+            See all →
+          </button>
+        </div>
+        <div class="scroll-row">
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #050010, #100025)"
+            >
+              🌀
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                Inception
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">2010 · Sci-Fi</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-rose-400"></span>
+                <span class="text-[10px] text-white/30">Hard</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #000510, #000a20)"
+            >
+              💻
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                The Social Network
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">2010 · Drama</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-orange-400"></span>
+                <span class="text-[10px] text-white/30">Medium</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #100800, #201200)"
+            >
+              🚗
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                Mad Max: Fury Road
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">2015 · Action</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-orange-400"></span>
+                <span class="text-[10px] text-white/30">Medium</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #000010, #000020)"
+            >
+              🪐
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                Interstellar
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">2014 · Sci-Fi</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-rose-400"></span>
+                <span class="text-[10px] text-white/30">Hard</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #080010, #180030)"
+            >
+              👁️
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                Get Out
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">2017 · Horror</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-orange-400"></span>
+                <span class="text-[10px] text-white/30">Medium</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #100010, #1e001e)"
+            >
+              🎵
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                La La Land
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">2016 · Musical</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-emerald-400"></span>
+                <span class="text-[10px] text-white/30">Easy</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #060a00, #0f1800)"
+            >
+              🏨
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                The Grand Budapest Hotel
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">2014 · Comedy</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-orange-400"></span>
+                <span class="text-[10px] text-white/30">Medium</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #0a0800, #1a1200)"
+            >
+              🏠
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                Parasite
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">2019 · Thriller</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-rose-400"></span>
+                <span class="text-[10px] text-white/30">Hard</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 2020s Movies ── -->
+      <section class="cat-section" style="animation-delay: 0.54s">
+        <div class="flex items-center gap-3 mb-5">
+          <span
+            class="cat-badge bg-rose-500/20 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full"
+            >🎬 2020s Movies</span
+          >
+          <span class="text-white/20 text-xs">6 quizzes</span>
+          <div class="flex-1 h-px bg-white/5"></div>
+          <button
+            class="text-xs text-white/30 hover:text-white/60 transition-colors"
+          >
+            See all →
+          </button>
+        </div>
+        <div class="scroll-row">
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #100500, #200c00)"
+            >
+              🥊
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                Everything Everywhere All At Once
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">2022 · Sci-Fi</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-rose-400"></span>
+                <span class="text-[10px] text-white/30">Hard</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #050010, #0d0020)"
+            >
+              🌌
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                Dune
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">2021 · Sci-Fi</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-orange-400"></span>
+                <span class="text-[10px] text-white/30">Medium</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #08000a, #160015)"
+            >
+              🕷️
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                Spider-Man: No Way Home
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">2021 · Action</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-emerald-400"></span>
+                <span class="text-[10px] text-white/30">Easy</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #100010, #1e001e)"
+            >
+              🎭
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                The Batman
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">2022 · Action</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-orange-400"></span>
+                <span class="text-[10px] text-white/30">Medium</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #080a00, #121500)"
+            >
+              💣
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                Oppenheimer
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">2023 · Drama</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-rose-400"></span>
+                <span class="text-[10px] text-white/30">Hard</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="movie-card w-40" onclick="handleClick(this)">
+            <div
+              class="poster-art"
+              style="background: linear-gradient(135deg, #0a0010, #180028)"
+            >
+              💃
+            </div>
+            <div class="p-3">
+              <p class="text-xs font-semibold text-white/90 leading-tight">
+                Barbie
+              </p>
+              <p class="text-[10px] text-white/35 mt-0.5">2023 · Comedy</p>
+              <div class="flex items-center mt-2">
+                <span class="diff-dot bg-emerald-400"></span>
+                <span class="text-[10px] text-white/30">Easy</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Divider stat row -->
+      <div
+        class="cat-section border border-white/5 rounded-2xl p-5 grid grid-cols-3 gap-4 text-center"
+        style="animation-delay: 0.65s; background: rgba(255, 255, 255, 0.02)"
+      >
+        <div>
+          <p class="logo text-3xl text-white">30</p>
+          <p class="text-xs text-white/30 mt-1">Total Quizzes</p>
+        </div>
+        <div class="border-x border-white/5">
+          <p class="logo text-3xl text-white">4</p>
+          <p class="text-xs text-white/30 mt-1">Decades</p>
+        </div>
+        <div>
+          <p class="logo text-3xl text-white">∞</p>
+          <p class="text-xs text-white/30 mt-1">Replayability</p>
+        </div>
+      </div>
+    </main>
+
+    <!-- Bottom nav -->
+    <div class="fixed bottom-0 left-0 right-0 z-50 content">
+      <div class="max-w-5xl mx-auto px-6 sm:px-10 pb-5">
+        <div
+          class="bg-[#13131c] border border-white/8 rounded-2xl px-6 py-3 flex items-center justify-between shadow-2xl"
+        >
+          <button class="flex flex-col items-center gap-0.5 text-violet-400">
+            <span class="text-lg">🎬</span>
+            <span class="text-[10px] font-medium">Categories</span>
+          </button>
+          <button
+            class="flex flex-col items-center gap-0.5 text-white/30 hover:text-white/60 transition-colors"
+          >
+            <span class="text-lg">🏆</span>
+            <span class="text-[10px]">Leaderboard</span>
+          </button>
+          <button
+            class="flex flex-col items-center gap-0.5 text-white/30 hover:text-white/60 transition-colors"
+          >
+            <span class="text-lg">⚡</span>
+            <span class="text-[10px]">Daily Quiz</span>
+          </button>
+          <button
+            class="flex flex-col items-center gap-0.5 text-white/30 hover:text-white/60 transition-colors"
+          >
+            <span class="text-lg">👤</span>
+            <span class="text-[10px]">Profile</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function handleClick(card) {
+        card.classList.add("clicked");
+      }
+
+      // Genre pill toggle
+      document.querySelectorAll(".genre-pill").forEach((pill) => {
+        pill.addEventListener("click", () => {
+          document
+            .querySelectorAll(".genre-pill")
+            .forEach((p) => p.classList.remove("active"));
+          pill.classList.add("active");
+        });
+      });
+    </script>
+  </body>
+</html>
