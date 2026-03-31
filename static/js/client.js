@@ -117,7 +117,7 @@ class ClientApp {
           localStorage.setItem("isAdmin", result.isAdmin ? "true" : "false");
 
           // redirect to admin or user dashboard based on role
-          window.location.href = result.isAdmin ? "admin.html" : "dashboard.html";
+          window.location.href = result.isAdmin ? "admin.html" : "categories.html";
         } catch (error) {
           this.showMessage(error.message, "error");
         }
@@ -142,7 +142,7 @@ class ClientApp {
           localStorage.setItem("isAdmin", "false");
           this.showMessage("Registration successful! Redirecting...", "success");
           setTimeout(() => {
-            window.location.href = "dashboard.html";
+            window.location.href = "categories.html";
           }, 800);
         } catch (error) {
           this.showMessage(error.message, "error");
@@ -216,12 +216,9 @@ class ClientApp {
         }
 
         try {
-
           const response = await fetch(`${this.API_BASE_URL}/admin/users`, {
             headers: { "x-admin-key": adminKey },
           });
-
-          
 
           const users = await this.authFetch("/admin/users");
           const tbody = document.getElementById("users-tbody");

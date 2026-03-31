@@ -231,12 +231,16 @@ class ServerApp {
       }
     });
 
+    // ==================
+    // QUIZ ROUTES
+    // ==================
+
     // Get all quiz categories
     this.app.get("/categories", async(req, res) => {
       const categories = await this.pool
         .request()
         .query("SELECT * from categories");
-      return res.json(categories);
+      return res.status(200).json(categories);
     })
 
     // Get all quizzes for a given category
@@ -246,18 +250,51 @@ class ServerApp {
         .request()
         .input("id", sql.Int, id)
         .query(`SELECT * FROM quizzes WHERE category_id = @id ORDER BY created_at DESC`);
-      return res.json(quizzes.recordset);
+      return res.status(200).json(quizzes.recordset);
     });
 
-    // Get all questions for a given quiz
+    // Get question and answers for a given quiz id
     this.app.get("/quizzes/:id", async(req, res)=> {
-      const quizId = req.params.id;
-      const questions = await this.pool
+      const questionId = req.params.id;
+      const result = await this.pool
         .request()
-        .input("quizId", sql.Int, quizId)
-        .query(`SELECT * FROM questions WHERE quiz_id = @quizId ORDER BY created_at DESC`);
-      return res.json(questions.recordset);
-    })
+        .input("questionId", sql.Int, questionId)
+        .query(`
+          SELECT
+            q.id            AS question_id,
+            q.question_text,
+            q.question_type,
+            q.media_url,
+            q.media_type,
+            q.display_order AS question_order,
+            a.id            AS answer_id,
+            a.answer_text,
+            a.is_correct,
+            a.display_order AS answer_order
+          FROM questions q
+          JOIN answers a ON a.question_id = q.id
+          WHERE q.id = @questionId
+          ORDER BY a.display_order
+        `);
+      const rows = result.recordset;
+      if (rows.length === 0) return res.status(404).json({ error: "Question not found" });
+
+      const question = {
+        id: rows[0].question_id,
+        question_text: rows[0].question_text,
+        question_type: rows[0].question_type,
+        media_url: rows[0].media_url,
+        media_type: rows[0].media_type,
+        display_order: rows[0].question_order,
+        answers: rows.map(r => ({
+          id: r.answer_id,
+          answer_text: r.answer_text,
+          is_correct: r.is_correct,
+          display_order: r.answer_order
+        }))
+      };
+      return res.status(200).json(question);
+    });
   }
 
   start() {
