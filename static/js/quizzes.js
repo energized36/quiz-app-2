@@ -11,9 +11,10 @@
 
         const container = document.getElementById("quizzes-container");
         quizzes.forEach(quiz => {
-          const div = document.createElement("div");
-          div.textContent = quiz.title;
-          container.appendChild(div);
+          const anchorTag = document.createElement("a");
+          anchorTag.textContent = quiz.title;
+          anchorTag.href = `/quiz.html?quizId=${quiz.id}&quizTitle=${encodeURIComponent(quiz.title)}`
+          container.appendChild(anchorTag);
         });
       }
 

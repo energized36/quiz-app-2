@@ -5,7 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiz</title>
 </head>
-<body>
-    <p>quiz for a given category</p>
+<body>  
+    <div id="quiz-container">
+        <h1 id="quiz-title"></h1>
+        <div id="quiz-question"></div>
+        <div id="quiz-answers"></div>
+        <button id="next-question">next</button>
+    </div>
 </body>
+<script>
+    async function loadQuiz(){
+        const params = new URLSearchParams(window.location.search);
+        const quizId = params.get("quizId");
+        const quiz = await fetch(`/quizzes/${quizId}`).then(response => response.json());
+        document.getElementById("quiz-title").innerHTML = params.get("quizTitle");
+        document.getElementById("quiz-question").innerHTML = quiz["question_text"];
+
+        // load answers based on question type
+        const answers = quiz["answers"];
+        answers.forEach(answer => {
+            const answerButton = document.createElement("button");
+            answerButton.innerText = `${answer.answer_text}`
+            document.getElementById("quiz-answers").append(answerButton);
+        });
+    }
+    loadQuiz();
+</script>
 </html>
