@@ -147,17 +147,17 @@
     <main class="content max-w-2xl mx-auto px-6 sm:px-10 pb-24">
 
         <!-- Video -->
-        <div class="fade-up video-wrap mb-6" style="animation-delay: 0.1s;">
+        <div class="hidden fade-up video-wrap mb-6" style="animation-delay: 0.1s;">
             <iframe src="https://www.youtube-nocookie.com/embed/KrwkXPs4IbM?autoplay=1" frameborder="0"
                 allowfullscreen></iframe>
         </div>
 
-        <div>
+        <div class="hidden fade-up video-wrap mb-6" style="animation-delay: 0.1s;">
             <video src="/assets/TestVideo.mp4" controls></video>
         </div>
 
-        <div class="fade-up video-wrap mb-6" style="animation-delay: 0.1s;">
-            <img src="/assets/pig.gif" alt="Pig" style="width:100%;height:100%;object-fit:cover;display:block;">
+        <div class="fade-up mb-6" style="animation-delay: 0.2s; " >
+            <img class="video-wrap" style="width:100%; height:100%; object-fit:cover; display:block;" src="/assets/pig.gif" alt="Pig">
         </div>
 
 
@@ -188,7 +188,7 @@
             </li>
         </ul>
 
-        <div class="flex justify-center mt-8">
+        <div class="flex fade-up justify-center mt-8" style="animation-delay: 0.4s;">
             <button class="px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium rounded-full transition-colors" onclick="submitAnswer()">Submit Answer</button>
         </div>
 

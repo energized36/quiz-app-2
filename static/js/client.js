@@ -205,79 +205,58 @@ class ClientApp {
   // ==================
 
   initAdmin() {
-    if (this.adminRoot) {
-      (async () => {
-        const token = this.getToken();
-        const isAdmin = localStorage.getItem("isAdmin") === "true";
+    if (!this.adminRoot) return;
 
-        if (!token || !isAdmin) {
-          window.location.href = "login.html";
+    (async () => {
+      const token = this.getToken();
+      const isAdmin = localStorage.getItem("isAdmin") === "true";
+
+      if (!token || !isAdmin) {
+        window.location.href = "login.html";
+        return;
+      }
+
+      try {
+        const quizzes = await this.authFetch("/admin/quizzes");
+        if (!quizzes) return;
+
+        const container = document.getElementById("quiz-list");
+        container.innerHTML = "";
+
+        if (quizzes.length === 0) {
+          container.innerHTML = `<p class="text-white/40 text-sm">No quizzes found.</p>`;
           return;
         }
 
-        try {
-          const response = await fetch(`${this.API_BASE_URL}/admin/users`, {
-            headers: { "x-admin-key": adminKey },
-          });
+        quizzes.forEach((quiz, index) => {
+          const card = document.createElement("div");
+          card.className = "quiz-card cat-section p-6";
+          card.style.animationDelay = `${0.1 + index * 0.07}s`;
 
-          const users = await this.authFetch("/admin/users");
-          const tbody = document.getElementById("users-tbody");
-          tbody.innerHTML = "";
+          const date = quiz.created_at
+            ? new Date(quiz.created_at).toLocaleDateString()
+            : "—";
 
-          users.forEach((u) => {
-            const tr = document.createElement("tr");
-            const pct = Math.min(((u.api_calls_consumed || 0) / 20) * 100, 100);
+          card.innerHTML = `
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <p class="text-xs font-medium tracking-[0.2em] text-violet-400/70 uppercase mb-1">${quiz.category_name}</p>
+                <h3 class="logo text-2xl text-white leading-tight mb-1">${quiz.title}</h3>
+                <p class="text-xs text-white/40 font-light">${quiz.description ?? ""}</p>
+              </div>
+              <div class="flex gap-2 shrink-0">
+                <button class="text-xs text-white border border-white/20 px-3 py-1.5 rounded-full hover:bg-white/10 transition-colors">Edit</button>
+                <button class="text-xs text-red-400 border border-red-400/30 px-3 py-1.5 rounded-full hover:bg-red-400/10 transition-colors">Delete</button>
+              </div>
+            </div>
+          `;
 
-            const tdId = document.createElement("td");
-            tdId.textContent = u.id;
-
-            const tdEmail = document.createElement("td");
-            tdEmail.textContent = u.email;
-
-            const tdCalls = document.createElement("td");
-            tdCalls.textContent = `${u.api_calls_consumed || 0} / ${u.api_calls_limit || 20}`;
-
-            const tdRole = document.createElement("td");
-            const roleBadge = document.createElement("span");
-            roleBadge.textContent = u.is_admin ? "Admin" : "User";
-            roleBadge.className = u.is_admin
-              ? "badge badge-admin"
-              : "badge badge-user";
-            tdRole.appendChild(roleBadge);
-
-            const tdJoined = document.createElement("td");
-            tdJoined.textContent = u.created_at
-              ? new Date(u.created_at).toLocaleDateString()
-              : "—";
-
-            const tdBar = document.createElement("td");
-            const barWrap = document.createElement("div");
-            barWrap.className = "mini-bar-wrap";
-            const barFill = document.createElement("div");
-            barFill.className = "mini-bar-fill";
-            barFill.style.width = `${pct}%`;
-            barFill.style.background =
-              pct >= 100
-                ? "var(--danger)"
-                : pct >= 75
-                  ? "#e07b00"
-                  : "var(--accent)";
-            barWrap.appendChild(barFill);
-            tdBar.appendChild(barWrap);
-
-            tr.append(tdId, tdEmail, tdCalls, tdRole, tdJoined, tdBar);
-            tbody.appendChild(tr);
-          });
-
-          document.getElementById("total-users").textContent = users.length;
-          document.getElementById("users-at-limit").textContent = users.filter(
-            (u) => (u.api_calls_consumed || 0) >= (u.api_calls_limit || 20),
-          ).length;
-        } catch (err) {
-          console.error("Admin load error:", err);
-        }
-      })();
-    }
+          container.appendChild(card);
+        });
+      } catch (err) {
+        console.error("Admin load error:", err);
+      }
+    })();
   }
 
   // ==================

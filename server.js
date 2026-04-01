@@ -59,8 +59,12 @@ class ServerApp {
   }
 
   setupStaticRoutes() {
-    this.app.get(["/"], (req, res) => {
-      res.redirect(`/login.html`);
+    this.app.get("/", (req, res) => {
+      res.redirect("/login.html");
+    });
+
+    this.app.get("/create", (req, res) => {
+      res.sendFile(path.join(this.clientDir, "create.html"));
     });
   }
 
@@ -235,6 +239,33 @@ class ServerApp {
     // QUIZ ROUTES
     // ==================
 
+    // Get all quizzes with category name and question count (admin only)
+    this.app.get("/admin/quizzes", this.requireAuth.bind(this), async (req, res) => {
+      if (!req.user.is_admin) {
+        return res.status(403).json({ error: "Admins only" });
+      }
+      try {
+        const result = await this.pool.request().query(`
+          SELECT
+            q.id,
+            q.title,
+            q.description,
+            q.created_at,
+            c.name AS category_name,
+            COUNT(qu.id) AS question_count
+          FROM quizzes q
+          JOIN categories c ON c.id = q.category_id
+          LEFT JOIN questions qu ON qu.quiz_id = q.id
+          GROUP BY q.id, q.title, q.description, q.created_at, c.name
+          ORDER BY q.created_at DESC
+        `);
+        res.json(result.recordset);
+      } catch (err) {
+        console.error("Admin quizzes error:", err);
+        res.status(500).json({ error: "Failed to fetch quizzes" });
+      }
+    });
+
     // Get all quiz categories
     this.app.get("/categories", async(req, res) => {
       const categories = await this.pool
@@ -242,6 +273,34 @@ class ServerApp {
         .query("SELECT * from categories");
       return res.status(200).json(categories);
     })
+
+    // Create a new quiz (admin only)
+    this.app.post("/quizzes", this.requireAuth.bind(this), async (req, res) => {
+      if (!req.user.is_admin) {
+        return res.status(403).json({ error: "Admins only" });
+      }
+      const { category_id, title, description } = req.body || {};
+      if (!category_id || !title) {
+        return res.status(400).json({ error: "category_id and title are required" });
+      }
+      try {
+        const result = await this.pool
+          .request()
+          .input("category_id", sql.Int, category_id)
+          .input("title", sql.NVarChar, title)
+          .input("description", sql.NVarChar, description || null)
+          .input("autoplay", sql.Bit, 0)
+          .query(`
+            INSERT INTO quizzes (category_id, title, description, autoplay)
+            OUTPUT INSERTED.id
+            VALUES (@category_id, @title, @description, @autoplay)
+          `);
+        res.status(201).json({ id: result.recordset[0].id });
+      } catch (err) {
+        console.error("Create quiz error:", err);
+        res.status(500).json({ error: "Failed to create quiz" });
+      }
+    });
 
     // Get all quizzes for a given category
     this.app.get("/categories/:id", async(req, res) => {
