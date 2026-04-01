@@ -216,6 +216,10 @@ class ClientApp {
         return;
       }
 
+      window.editQuiz = (id) => {
+        window.location.href = `/edit.html?quizId=${id}`;
+      }
+
       window.deleteQuiz = async (id) => {
         if (!confirm("Delete this quiz?")) return;
         try {
@@ -260,7 +264,7 @@ class ClientApp {
                 <p class="text-xs text-white/40 font-light">${quiz.description ?? ""}</p>
               </div>
               <div class="flex gap-2 shrink-0">
-                <button class="text-xs text-white border border-white/20 px-3 py-1.5 rounded-full hover:bg-white/10 transition-colors">Edit</button>
+                <button onclick="editQuiz(${quiz.id})" class="text-xs text-white border border-white/20 px-3 py-1.5 rounded-full hover:bg-white/10 transition-colors">Edit</button>
                 <button onclick="deleteQuiz(${quiz.id})" class="text-xs text-red-400 border border-red-400/30 px-3 py-1.5 rounded-full hover:bg-red-400/10 transition-colors">Delete</button>
               </div>
             </div>
