@@ -3,7 +3,7 @@ class ClientApp {
     this.loginForm = document.getElementById("login-form");
     this.registerForm = document.getElementById("register-form");
     this.message = document.getElementById("form-message");
-    this.API_BASE_URL = "http://localhost:3000";
+    this.API_BASE_URL = "http:/20.151.61.241:3000";
     this.dashboardRoot = document.getElementById("dashboard-root");
     this.adminRoot = document.getElementById("admin-root");
     this.logoutBtn = document.getElementById("logout-btn");
