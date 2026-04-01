@@ -1,21 +1,29 @@
-      async function loadQuizzes() {
+class QuizzesPage {
+    constructor() {
+        // Read category context from the URL params set by categories.html
         const params = new URLSearchParams(window.location.search);
-        const categoryId = params.get("categoryId");
+        this.categoryId = params.get("categoryId");
+        this.categoryName = params.get("categoryName") ?? "";
+        this.container = document.getElementById("quizzes-container");
+    }
 
-        if (!categoryId) {
-          document.getElementById("quizzes-container").textContent = "No category selected.";
-          return;
+    // Fetch all quizzes for this category and render them
+    async load() {
+        if (!this.categoryId) {
+            this.container.textContent = "No category selected.";
+            return;
         }
+        const quizzes = await fetch(`/categories/${this.categoryId}`).then(r => r.json());
+        quizzes.forEach(quiz => this.renderQuiz(quiz));
+    }
 
-        const quizzes = await fetch(`/categories/${categoryId}`).then(r => r.json());
+    // Create and append a link for a single quiz
+    renderQuiz(quiz) {
+        const link = document.createElement("a");
+        link.textContent = quiz.title;
+        link.href = `/quiz.html?quizId=${quiz.id}&quizTitle=${encodeURIComponent(quiz.title)}&categoryName=${encodeURIComponent(this.categoryName)}`;
+        this.container.appendChild(link);
+    }
+}
 
-        const container = document.getElementById("quizzes-container");
-        quizzes.forEach(quiz => {
-          const anchorTag = document.createElement("a");
-          anchorTag.textContent = quiz.title;
-          anchorTag.href = `/quiz.html?quizId=${quiz.id}&quizTitle=${encodeURIComponent(quiz.title)}`
-          container.appendChild(anchorTag);
-        });
-      }
-
-      loadQuizzes();
+new QuizzesPage().load();

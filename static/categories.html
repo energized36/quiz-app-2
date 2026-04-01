@@ -204,7 +204,7 @@
           `;
           card.onclick = () => {
             card.classList.add("clicked");
-            window.location.href = `/quizzes.html?categoryId=${category.id}`;
+            window.location.href = `/quizzes.html?categoryId=${category.id}&categoryName=${encodeURIComponent(category.name)}`;
           };
           container.appendChild(card);
         });

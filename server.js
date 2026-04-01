@@ -253,47 +253,59 @@ class ServerApp {
       return res.status(200).json(quizzes.recordset);
     });
 
-    // Get question and answers for a given quiz id
+    // Get all questions and answers for a given quiz id
     this.app.get("/quizzes/:id", async(req, res)=> {
-      const questionId = req.params.id;
-      const result = await this.pool
-        .request()
-        .input("questionId", sql.Int, questionId)
-        .query(`
-          SELECT
-            q.id            AS question_id,
-            q.question_text,
-            q.question_type,
-            q.media_url,
-            q.media_type,
-            q.display_order AS question_order,
-            a.id            AS answer_id,
-            a.answer_text,
-            a.is_correct,
-            a.display_order AS answer_order
-          FROM questions q
-          JOIN answers a ON a.question_id = q.id
-          WHERE q.id = @questionId
-          ORDER BY a.display_order
-        `);
-      const rows = result.recordset;
-      if (rows.length === 0) return res.status(404).json({ error: "Question not found" });
+      const quizId = req.params.id;
+      try {
+        const result = await this.pool
+          .request()
+          .input("quizId", sql.Int, quizId)
+          .query(`
+            SELECT
+              q.id            AS question_id,
+              q.question_text,
+              q.question_type,
+              q.media_url,
+              q.media_type,
+              q.display_order AS question_order,
+              a.id            AS answer_id,
+              a.answer_text,
+              a.is_correct,
+              a.display_order AS answer_order
+            FROM questions q
+            JOIN answers a ON a.question_id = q.id
+            WHERE q.quiz_id = @quizId
+            ORDER BY q.display_order, a.display_order
+          `);
 
-      const question = {
-        id: rows[0].question_id,
-        question_text: rows[0].question_text,
-        question_type: rows[0].question_type,
-        media_url: rows[0].media_url,
-        media_type: rows[0].media_type,
-        display_order: rows[0].question_order,
-        answers: rows.map(r => ({
-          id: r.answer_id,
-          answer_text: r.answer_text,
-          is_correct: r.is_correct,
-          display_order: r.answer_order
-        }))
-      };
-      return res.status(200).json(question);
+        const rows = result.recordset;
+        if (rows.length === 0) return res.status(404).json({ error: "Quiz not found" });
+
+        const questionsMap = new Map();
+        rows.forEach(r => {
+          if (!questionsMap.has(r.question_id)) {
+            questionsMap.set(r.question_id, {
+              id: r.question_id,
+              question_text: r.question_text,
+              question_type: r.question_type,
+              media_url: r.media_url,
+              media_type: r.media_type,
+              display_order: r.question_order,
+              answers: []
+            });
+          }
+          questionsMap.get(r.question_id).answers.push({
+            id: r.answer_id,
+            answer_text: r.answer_text,
+            is_correct: r.is_correct,
+            display_order: r.answer_order
+          });
+        });
+
+        return res.status(200).json([...questionsMap.values()]);
+      } catch(error) {
+        return res.status(500).json({ error: error.message });
+      }
     });
   }
 
