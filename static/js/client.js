@@ -216,6 +216,20 @@ class ClientApp {
         return;
       }
 
+      window.deleteQuiz = async (id) => {
+        if (!confirm("Delete this quiz?")) return;
+        try {
+          const res = await fetch(`http://localhost:3000/quizzes/${id}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${this.getToken()}` },
+          });
+          if (!res.ok) throw new Error("Delete failed");
+          document.getElementById(`quiz-card-${id}`)?.remove();
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+
       try {
         const quizzes = await this.authFetch("/admin/quizzes");
         if (!quizzes) return;
@@ -230,6 +244,7 @@ class ClientApp {
 
         quizzes.forEach((quiz, index) => {
           const card = document.createElement("div");
+          card.id = `quiz-card-${quiz.id}`;
           card.className = "quiz-card cat-section p-6";
           card.style.animationDelay = `${0.1 + index * 0.07}s`;
 
@@ -246,7 +261,7 @@ class ClientApp {
               </div>
               <div class="flex gap-2 shrink-0">
                 <button class="text-xs text-white border border-white/20 px-3 py-1.5 rounded-full hover:bg-white/10 transition-colors">Edit</button>
-                <button class="text-xs text-red-400 border border-red-400/30 px-3 py-1.5 rounded-full hover:bg-red-400/10 transition-colors">Delete</button>
+                <button onclick="deleteQuiz(${quiz.id})" class="text-xs text-red-400 border border-red-400/30 px-3 py-1.5 rounded-full hover:bg-red-400/10 transition-colors">Delete</button>
               </div>
             </div>
           `;

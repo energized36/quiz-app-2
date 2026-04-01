@@ -302,6 +302,23 @@ class ServerApp {
       }
     });
 
+    // Delete a quiz (admin only)
+    this.app.delete("/quizzes/:id", this.requireAuth.bind(this), async (req, res) => {
+      if (!req.user.is_admin) {
+        return res.status(403).json({ error: "Admins only" });
+      }
+      try {
+        await this.pool
+          .request()
+          .input("id", sql.Int, req.params.id)
+          .query("DELETE FROM quizzes WHERE id = @id");
+        res.status(204).end();
+      } catch (err) {
+        console.error("Delete quiz error:", err);
+        res.status(500).json({ error: "Failed to delete quiz" });
+      }
+    });
+
     // Get all quizzes for a given category
     this.app.get("/categories/:id", async(req, res) => {
       const id = req.params.id;
