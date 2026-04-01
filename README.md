@@ -225,7 +225,7 @@ docker run -p 3000:3000 --env-file .env quiz-app
 
 ### Part C — DevOps
 - [x] Web API runs in a Docker container
-- [ ] GitHub Actions CI/CD pipeline for build/compilation
+- [x] GitHub Actions CI/CD pipeline for build/compilation
 - [x] Database running in a Docker container
 - [x] App deployed to the cloud with HTTPS enabled
 
